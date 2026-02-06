@@ -21,7 +21,7 @@ app.post('/', async (req, res) => {
     const prompt = req.body.prompt;
 
     const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompt,
     }) as any;
 
