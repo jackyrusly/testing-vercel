@@ -38,6 +38,7 @@ app.get('/', (req, res) => {
 })
 
 app.post('/', async (req, res) => {
+  console.log('bodyyy', req.body);
   let { conversationId, prompt } = req.body;
 
   if (!prompt) {
