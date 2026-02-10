@@ -58,19 +58,32 @@ app.post('/', async (req, res) => {
     ];
 
   // add user message
+
+
+  // 🔑 USE HISTORY HERE
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [...history, {
+      role: "user",
+      parts: [{ text: prompt }],
+    }],
+  });
+
+  const reply =
+    response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+  if (reply.includes("Maaf, saya hanya bisa membantu topik pertanian")) {
+    return res.json({
+      conversationId,
+      message: reply,
+    });
+  }
+
   history.push({
     role: "user",
     parts: [{ text: prompt }],
   });
 
-  // 🔑 USE HISTORY HERE
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: history,
-  });
-
-  const reply =
-    response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
   history.push({
     role: "model",
