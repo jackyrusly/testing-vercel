@@ -9,21 +9,18 @@ const redis = new Redis({
 });
 
 type Message = {
-  role: "system" | "user" | "assistant";
+  role: "user" | "model";
   parts: { text: string }[];
 };
 
-const SYSTEM_CONTEXT = `
+const INITIAL_CONTEXT = `
 Kamu adalah chatbot khusus pertanian dan sayuran.
 
 ATURAN WAJIB:
 - Selalu jawab dalam Bahasa Indonesia.
 - Topik HANYA tentang pertanian, sayuran, budidaya, pupuk, hama, penyakit tanaman, dan panen.
-- Jika pertanyaan di luar topik tersebut (misalnya rumah sakit, kesehatan manusia, IT, hukum, dll),
-  JANGAN menjawab pertanyaannya.
-- Balasan WAJIB berupa penolakan singkat dan ajakan kembali ke topik pertanian.
-
-Format penolakan:
+- Jika pertanyaan di luar topik tersebut, JANGAN menjawab pertanyaannya.
+- Balasan penolakan:
 "Maaf, saya hanya bisa membantu topik pertanian dan sayuran."
 `;
 
@@ -54,8 +51,8 @@ app.post('/', async (req, res) => {
   const history =
     (await redis.get<Message[]>(`chat:${conversationId}`)) ?? [
       {
-        role: "system",
-        parts: [{ text: SYSTEM_CONTEXT }],
+        role: "user",
+        parts: [{ text: INITIAL_CONTEXT }],
       },
     ];
 
@@ -75,7 +72,7 @@ app.post('/', async (req, res) => {
     response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
   history.push({
-    role: "assistant",
+    role: "model",
     parts: [{ text: reply }],
   });
 
