@@ -9,6 +9,7 @@
   "dependencies": {
     "@google/genai": "^1.40.0",
     "@types/express": "^5.0.0",
+    "@upstash/redis": "^1.36.2",
     "express": "^4.18.2"
   },
   "devDependencies": {

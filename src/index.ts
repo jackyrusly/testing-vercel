@@ -1,21 +1,30 @@
 import express from 'express';
 import { GoogleGenAI } from "@google/genai";
 import crypto from "crypto";
+import { Redis } from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.REDIS_REST_URL!,
+  token: process.env.REDIS_REST_TOKEN!,
+});
 
 type Message = {
   role: "system" | "user" | "assistant";
   parts: { text: string }[];
 };
 
-const conversations = new Map<string, Message[]>();
-
 const SYSTEM_CONTEXT = `
-Kamu adalah chatbot pertanian.
-Aturan wajib:
-- Selalu jawab menggunakan Bahasa Indonesia.
-- Topik hanya tentang pertanian, sayuran, budidaya, pupuk, hama, panen, dan perawatan tanaman.
-- Jika pertanyaan di luar topik tersebut, tolak dengan sopan dan arahkan kembali ke pertanian.
-- Jawaban harus singkat, jelas, dan praktis.
+Kamu adalah chatbot khusus pertanian dan sayuran.
+
+ATURAN WAJIB:
+- Selalu jawab dalam Bahasa Indonesia.
+- Topik HANYA tentang pertanian, sayuran, budidaya, pupuk, hama, penyakit tanaman, dan panen.
+- Jika pertanyaan di luar topik tersebut (misalnya rumah sakit, kesehatan manusia, IT, hukum, dll),
+  JANGAN menjawab pertanyaannya.
+- Balasan WAJIB berupa penolakan singkat dan ajakan kembali ke topik pertanian.
+
+Format penolakan:
+"Maaf, saya hanya bisa membantu topik pertanian dan sayuran."
 `;
 
 // The client gets the API key from the environment variable `GEMINI_API_KEY`.
@@ -32,56 +41,62 @@ app.get('/', (req, res) => {
 })
 
 app.post('/', async (req, res) => {
-  console.log(req.body);
   let { conversationId, prompt } = req.body;
 
   if (!prompt) {
     return res.status(400).json({ error: "prompt is required" });
   }
 
-  // Generate conversationId if missing
   if (!conversationId) {
     conversationId = crypto.randomUUID();
   }
 
   const history =
-    conversations.get(conversationId) ?? [
+    (await redis.get<Message[]>(`chat:${conversationId}`)) ?? [
       {
         role: "system",
         parts: [{ text: SYSTEM_CONTEXT }],
       },
     ];
 
-  // Add user message
+  // add user message
   history.push({
     role: "user",
     parts: [{ text: prompt }],
   });
 
+  // 🔑 USE HISTORY HERE
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: prompt,
-  }) as any;
+    contents: history,
+  });
 
   const reply =
     response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
-  // Save assistant reply
   history.push({
     role: "assistant",
     parts: [{ text: reply }],
   });
 
-
-  // Trim history
+  // trim
   const MAX_MESSAGES = 20;
-  conversations.set(conversationId, history.slice(-MAX_MESSAGES));
+  const trimmedHistory =
+    history.length > MAX_MESSAGES
+      ? [history[0], ...history.slice(-MAX_MESSAGES)]
+      : history;
+
+  await redis.set(
+    `chat:${conversationId}`,
+    trimmedHistory,
+    { ex: 60 * 60 * 24 }
+  );
 
   res.json({
     conversationId,
     message: reply,
   });
-})
+});
 
 app.listen(process.env.PORT || 3000);
 
