@@ -50,20 +50,16 @@ app.post('/', async (req, res) => {
   }
 
   const history =
-    (await redis.get<Message[]>(`chat:${conversationId}`)) ?? [
-      {
-        role: "user",
-        parts: [{ text: INITIAL_CONTEXT }],
-      },
-    ];
-
-  // add user message
-
+    (await redis.get<Message[]>(`chat:${conversationId}`)) ?? [];
 
   // 🔑 USE HISTORY HERE
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: [...history, {
+    contents: [{
+      role: "user",
+      parts: [{ text: INITIAL_CONTEXT }],
+    },
+    ...history, {
       role: "user",
       parts: [{ text: prompt }],
     }],
