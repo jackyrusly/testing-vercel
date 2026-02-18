@@ -72,6 +72,7 @@ app.post('/', async (req, res) => {
     return res.json({
       conversationId,
       message: reply,
+      shouldContinue: false,
     });
   }
 
